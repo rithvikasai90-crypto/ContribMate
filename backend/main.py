@@ -2,14 +2,22 @@
 from fastapi import FastAPI
 from ollama import chat
 import requests
+
 from github_service import (
     get_repository,
     get_beginner_issues,
     get_issue_details,
 )
 
+# NEW: Import authentication routes
+from auth import router as auth_router
+
+
 # Create the ContribMate application
 app = FastAPI()
+
+# NEW: Enable login, signup, logout, and session checking
+app.include_router(auth_router)
 
 
 # Check if our backend is running
@@ -117,6 +125,8 @@ def beginner_issues(owner: str, repo: str):
             "error": "Could not fetch GitHub issues"
         }
 
+
+# Explain a GitHub issue using Gemma 4
 @app.get("/explain-issue")
 def explain_issue(owner: str, repo: str, issue_number: int):
     try:
@@ -177,4 +187,3 @@ are missing from the issue description.
 
     except Exception as e:
         return {"error": str(e)}
-
