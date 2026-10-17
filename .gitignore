@@ -27,3 +27,7 @@ Thumbs.db
 
 # Log files
 *.log
+# Local authentication data
+backend/users.db
+backend/users.db-*
+backend/.auth_secret
