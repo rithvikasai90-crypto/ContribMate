@@ -1,0 +1,29 @@
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Node.js and React
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# VS Code and IDE settings
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log

@@ -1,0 +1,178 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0f172a;
+  color: #f8fafc;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 60px 20px;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.hero h1 {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.hero p {
+  color: #94a3b8;
+  font-size: 18px;
+}
+
+.panel {
+  background: #1e293b;
+  padding: 28px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  border: 1px solid #334155;
+}
+
+.panel p {
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+input {
+  width: 100%;
+  padding: 15px;
+  border-radius: 9px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: white;
+  font-size: 16px;
+  margin: 20px 0 14px;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  background: #6366f1;
+  border: none;
+  border-radius: 9px;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #4f46e5;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+a {
+  color: #a5b4fc;
+}
+
+.analysis {
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+
+.error {
+  color: #fca5a5 !important;
+}
+
+.issues-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.issue-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.issue-card h3 {
+  margin-top: 0;
+  color: #f8fafc;
+}
+
+.issue-card p {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.issue-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.issue-label {
+  background: #14532d;
+  color: #bbf7d0;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.analysis h1,
+.analysis h2,
+.analysis h3 {
+  color: #f8fafc;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.analysis p {
+  line-height: 1.8;
+}
+
+.analysis ul,
+.analysis ol {
+  padding-left: 24px;
+  line-height: 1.8;
+}
+
+.analysis li {
+  margin-bottom: 10px;
+}
+
+.analysis strong {
+  color: #ffffff;
+}
+
+.analysis code {
+  background: #334155;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.issue-card button {
+  display: block;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.issue-explanation {
+  margin-top: 18px;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid #334155;
+  border-radius: 10px;
+}
+
+.issue-explanation .analysis {
+  line-height: 1.8;
+}
