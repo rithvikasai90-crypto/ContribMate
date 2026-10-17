@@ -96,6 +96,17 @@ npm run dev
 
 On Windows PowerShell, use `npm.cmd` instead of `npm` if needed.
 
+The frontend displays the backend address and proxies API requests to
+`http://127.0.0.1:8000` by default. To use a different backend, create
+`frontend/.env` with:
+
+```env
+VITE_BACKEND_URL=http://127.0.0.1:8000
+```
+
+Restart the frontend after changing this value. The backend address links to
+its API documentation at `/docs`.
+
 Frontend URL: http://localhost:5173/
 
 ## 🚀 How to Use

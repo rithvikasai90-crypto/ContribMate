@@ -3,6 +3,8 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+
 function ContribMateApp()  {
   const [url, setUrl] = useState("");
   const [repository, setRepository] = useState(null);
@@ -156,6 +158,9 @@ function ContribMateApp()  {
       <header className="hero">
         <h1>🚀 ContribMate</h1>
         <p>Your AI companion for open-source contributions.</p>
+        <p className="backend-address">
+          Backend: <a href={`${backendUrl}/docs`} target="_blank" rel="noreferrer">{backendUrl}</a>
+        </p>
       </header>
 
       {/* Repository search */}

@@ -55,6 +55,16 @@ body {
   line-height: 1.5;
 }
 
+.hero .backend-address {
+  margin-top: 14px;
+  font-size: 14px;
+}
+
+.backend-address a {
+  color: #a5b4fc;
+  overflow-wrap: anywhere;
+}
+
 /* Rounded dashboard panels */
 .panel {
   width: 100%;
