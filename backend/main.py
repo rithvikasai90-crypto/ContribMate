@@ -1,5 +1,7 @@
 
 from fastapi import FastAPI
+import os
+from fastapi.middleware.cors import CORSMiddleware
 from ollama import chat
 import requests
 import re
@@ -17,7 +19,23 @@ from auth import router as auth_router
 
 # Create the ContribMate application
 app = FastAPI()
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
+production_frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+
+if production_frontend:
+    allowed_origins.append(production_frontend)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 # Keep login, signup, logout, and session checking
 app.include_router(auth_router)
 

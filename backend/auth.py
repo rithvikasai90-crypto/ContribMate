@@ -12,8 +12,15 @@ from pwdlib import PasswordHash
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-DB_PATH = Path(__file__).resolve().parent / "users.db"
-SECRET_FILE = Path(__file__).resolve().parent / ".auth_secret"
+BASE_DIR = Path(__file__).resolve().parent
+
+# Use a persistent directory in production, local backend folder otherwise.
+DATA_DIR = Path(os.getenv("CONTRIBMATE_DATA_DIR", str(BASE_DIR)))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+DB_PATH = DATA_DIR / "users.db"
+SECRET_FILE = DATA_DIR / ".auth_secret"
+
 ALGORITHM = "HS256"
 SESSION_DAYS = 7
 
@@ -21,11 +28,11 @@ password_hash = PasswordHash.recommended()
 
 
 def get_secret():
-    # A persistent secret is needed so sessions survive restarts.
     if SECRET_FILE.exists():
         return SECRET_FILE.read_text(encoding="utf-8").strip()
 
     secret = secrets.token_urlsafe(48)
+
     try:
         with SECRET_FILE.open("x", encoding="utf-8") as file:
             file.write(secret)
@@ -37,9 +44,12 @@ def get_secret():
 
 SECRET_KEY = os.getenv("CONTRIBMATE_AUTH_SECRET") or get_secret()
 
+# Set CONTRIBMATE_ENV=production on Render.
+IS_PRODUCTION = os.getenv("CONTRIBMATE_ENV", "development").lower() == "production"
+
 
 def connect_db():
-    connection = sqlite3.connect(DB_PATH)
+    connection = sqlite3.connect(DB_PATH, timeout=15)
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -79,9 +89,7 @@ def public_user(user):
 
 
 def create_session(response, user_id, request):
-    expires = datetime.now(timezone.utc) + timedelta(
-        days=SESSION_DAYS
-    )
+    expires = datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)
 
     token = jwt.encode(
         {"sub": str(user_id), "exp": expires},
@@ -93,8 +101,8 @@ def create_session(response, user_id, request):
         key="contribmate_session",
         value=token,
         httponly=True,
-        secure=request.url.scheme == "https",
-        samesite="lax",
+        secure=IS_PRODUCTION or request.url.scheme == "https",
+        samesite="none" if IS_PRODUCTION else "lax",
         max_age=SESSION_DAYS * 24 * 60 * 60,
         path="/",
     )
@@ -207,6 +215,8 @@ def logout(response: Response):
     response.delete_cookie(
         key="contribmate_session",
         path="/",
-        samesite="lax",
+        samesite="none" if IS_PRODUCTION else "lax",
+        secure=IS_PRODUCTION,
     )
+
     return {"message": "Logged out successfully."}
