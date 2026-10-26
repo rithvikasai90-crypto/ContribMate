@@ -6,3 +6,4 @@ ollama
 pwdlib[argon2]
 PyJWT
 email-validator
+psycopg[binary]
