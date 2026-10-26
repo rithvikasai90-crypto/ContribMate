@@ -3,14 +3,116 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+// Use Vercel's /api proxy in production.
+// Vite's local development server can use the Render backend.
+const API_BASE = import.meta.env.DEV
+  ? "https://contribmate3.onrender.com"
+  : "/api";
 
-function ContribMateApp()  {
+const BACKEND_URL = "https://contribmate3.onrender.com";
+
+async function getApiData(path) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the backend. Check your connection and try again."
+    );
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    if (response.status === 504 || response.status === 502) {
+      throw new Error(
+        "The server took too long to respond. Please try again."
+      );
+    }
+
+    throw new Error(
+      `The server returned an unexpected response (HTTP ${response.status}).`
+    );
+  }
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("Could not read the backend response.");
+  }
+
+  if (!response.ok || data.error) {
+    const detail =
+      typeof data.detail === "string"
+        ? data.detail
+        : typeof data.error === "string"
+          ? data.error
+          : `Request failed (HTTP ${response.status}).`;
+
+    throw new Error(detail);
+  }
+
+  return data;
+}
+
+function parseGitHubUrl(input) {
+  let parsed;
+
+  try {
+    parsed = new URL(input.trim());
+  } catch {
+    throw new Error(
+      "Please enter a valid GitHub URL, such as https://github.com/fastapi/fastapi"
+    );
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  if (
+    parsed.protocol !== "https:" ||
+    !["github.com", "www.github.com"].includes(hostname)
+  ) {
+    throw new Error(
+      "Please enter a GitHub repository URL beginning with https://github.com/"
+    );
+  }
+
+  const parts = parsed.pathname
+    .split("/")
+    .filter(Boolean);
+
+  if (parts.length !== 2) {
+    throw new Error(
+      "Enter a repository URL in the format https://github.com/owner/repository"
+    );
+  }
+
+  const owner = parts[0];
+  const repo = parts[1].replace(/\.git$/i, "");
+
+  if (!owner || !repo) {
+    throw new Error("Invalid GitHub repository URL.");
+  }
+
+  return { owner, repo };
+}
+
+function ContribMateApp() {
   const [url, setUrl] = useState("");
   const [repository, setRepository] = useState(null);
   const [repoInfo, setRepoInfo] = useState(null);
   const [issues, setIssues] = useState([]);
   const [analysis, setAnalysis] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [issuesLoading, setIssuesLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,6 +124,8 @@ function ContribMateApp()  {
   const [explanationError, setExplanationError] = useState("");
 
   async function analyzeRepository() {
+    if (loading || issuesLoading) return;
+
     setError("");
     setIssuesError("");
     setAnalysis("");
@@ -36,72 +140,50 @@ function ContribMateApp()  {
     let repo;
 
     try {
-      const parsed = new URL(url.trim());
-      const parts = parsed.pathname.split("/").filter(Boolean);
-
-      if (
-        !["github.com", "www.github.com"].includes(
-          parsed.hostname.toLowerCase()
-        ) ||
-        parts.length !== 2
-      ) {
-        throw new Error("Invalid GitHub repository URL");
-      }
-
-      [owner, repo] = parts;
-      repo = repo.replace(/\.git$/, "");
-    } catch {
-      setError(
-        "Please enter a valid URL like https://github.com/fastapi/fastapi"
-      );
+      ({ owner, repo } = parseGitHubUrl(url));
+    } catch (err) {
+      setError(err.message);
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `/api/analyze-repo?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`
-      );
+      const endpoint =
+        `/analyze-repo?owner=${encodeURIComponent(owner)}` +
+        `&repo=${encodeURIComponent(repo)}`;
 
-      if (!response.ok) {
-        throw new Error("Could not connect to the backend.");
-      }
+      const data = await getApiData(endpoint);
 
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
+      if (!data.repository || !data.analysis) {
+        throw new Error(
+          "The backend did not return a complete repository analysis."
+        );
       }
 
       setRepository(data.repository);
       setRepoInfo({ owner, repo });
-      setAnalysis(data.analysis || "");
+      setAnalysis(data.analysis);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      setError(err.message || "Repository analysis failed.");
       setLoading(false);
       return;
+    } finally {
+      setLoading(false);
     }
 
-    setLoading(false);
     setIssuesLoading(true);
 
     try {
-      const response = await fetch(
-        `/api/beginner-issues?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`
+      const endpoint =
+        `/beginner-issues?owner=${encodeURIComponent(owner)}` +
+        `&repo=${encodeURIComponent(repo)}`;
+
+      const data = await getApiData(endpoint);
+
+      setIssues(
+        Array.isArray(data.issues) ? data.issues : []
       );
-
-      if (!response.ok) {
-        throw new Error("Could not fetch beginner-friendly issues.");
-      }
-
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      setIssues(Array.isArray(data.issues) ? data.issues : []);
     } catch (err) {
       setIssuesError(
         err.message || "Could not load beginner-friendly issues."
@@ -125,22 +207,15 @@ function ContribMateApp()  {
     try {
       const { owner, repo } = repoInfo;
 
-      const response = await fetch(
-        `/api/explain-issue?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&issue_number=${issueNumber}`
-      );
+      const endpoint =
+        `/explain-issue?owner=${encodeURIComponent(owner)}` +
+        `&repo=${encodeURIComponent(repo)}` +
+        `&issue_number=${encodeURIComponent(issueNumber)}`;
 
-      if (!response.ok) {
-        throw new Error("Could not connect to the AI explanation service.");
-      }
-
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      const data = await getApiData(endpoint);
 
       if (!data.explanation) {
-        throw new Error("No explanation was returned.");
+        throw new Error("No issue explanation was returned.");
       }
 
       setIssueExplanation(data.explanation);
@@ -157,13 +232,23 @@ function ContribMateApp()  {
     <main className="container">
       <header className="hero">
         <h1>🚀 ContribMate</h1>
-        <p>Your AI companion for open-source contributions.</p>
+
+        <p>
+          Your AI companion for open-source contributions.
+        </p>
+
         <p className="backend-address">
-          Backend: <a href={`${backendUrl}/docs`} target="_blank" rel="noreferrer">{backendUrl}</a>
+          Backend:{" "}
+          <a
+            href={`${BACKEND_URL}/docs`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {BACKEND_URL}
+          </a>
         </p>
       </header>
 
-      {/* Repository search */}
       <section className="panel">
         <h2>Explore a GitHub Repository</h2>
 
@@ -182,25 +267,47 @@ function ContribMateApp()  {
         <button
           type="button"
           onClick={analyzeRepository}
-          disabled={loading || issuesLoading || explainingIssue}
+          disabled={
+            loading ||
+            issuesLoading ||
+            explainingIssue
+          }
         >
           {loading
-            ? "Analyzing..."
+            ? "⏳ Analyzing repository..."
             : issuesLoading
               ? "Loading Issues..."
               : "✨ Analyze Repository"}
         </button>
 
-        {error && <p className="error">{error}</p>}
+        {loading && (
+          <p>
+            Groq AI is preparing your contribution guide.
+            This may take a little time...
+          </p>
+        )}
+
+        {error && (
+          <p className="error">{error}</p>
+        )}
       </section>
 
-      {/* Repository details */}
       {repository && (
         <section className="panel">
           <h2>{repository.name}</h2>
-          <p>{repository.description}</p>
-          <p>Language: {repository.language || "Unknown"}</p>
-          <p>⭐ Stars: {repository.stars ?? "Unknown"}</p>
+
+          <p>
+            {repository.description ||
+              "No description provided."}
+          </p>
+
+          <p>
+            Language: {repository.language || "Unknown"}
+          </p>
+
+          <p>
+            ⭐ Stars: {repository.stars ?? "Unknown"}
+          </p>
 
           <a
             href={repository.url}
@@ -212,32 +319,39 @@ function ContribMateApp()  {
         </section>
       )}
 
-      {/* AI Contribution Guide */}
       {analysis && (
         <section className="panel">
           <h2>🤖 AI Contribution Guide</h2>
 
           <div className="analysis">
-            <ReactMarkdown>{analysis}</ReactMarkdown>
+            <ReactMarkdown>
+              {analysis}
+            </ReactMarkdown>
           </div>
         </section>
       )}
 
-      {/* Beginner-friendly issues */}
       {repository && (
         <section className="panel">
           <h2>🌱 Beginner-Friendly Issues</h2>
 
           <p>
-            Explore open GitHub issues labeled "good first issue".
+            Explore open GitHub issues labeled
+            "good first issue".
           </p>
 
           {issuesLoading ? (
-            <p>Loading beginner-friendly issues...</p>
+            <p>
+              Loading beginner-friendly issues...
+            </p>
           ) : issuesError ? (
-            <p className="error">{issuesError}</p>
+            <p className="error">
+              {issuesError}
+            </p>
           ) : issues.length === 0 ? (
-            <p>No beginner-friendly issues found right now.</p>
+            <p>
+              No beginner-friendly issues found right now.
+            </p>
           ) : (
             <div className="issues-list">
               {issues.map((issue) => (
@@ -246,17 +360,22 @@ function ContribMateApp()  {
                   key={issue.number}
                 >
                   <h3>{issue.title}</h3>
-                  <p>Issue #{issue.number}</p>
+
+                  <p>
+                    Issue #{issue.number}
+                  </p>
 
                   <div className="issue-labels">
-                    {issue.labels.map((label) => (
-                      <span
-                        className="issue-label"
-                        key={label}
-                      >
-                        {label}
-                      </span>
-                    ))}
+                    {(issue.labels || []).map(
+                      (label) => (
+                        <span
+                          className="issue-label"
+                          key={label}
+                        >
+                          {label}
+                        </span>
+                      )
+                    )}
                   </div>
 
                   <a
@@ -269,7 +388,9 @@ function ContribMateApp()  {
 
                   <button
                     type="button"
-                    onClick={() => explainIssue(issue.number)}
+                    onClick={() =>
+                      explainIssue(issue.number)
+                    }
                     disabled={explainingIssue}
                   >
                     {explainingIssue &&
@@ -282,7 +403,7 @@ function ContribMateApp()  {
                     <div className="issue-explanation">
                       {explainingIssue && (
                         <p>
-                          🤖 Gemma 4 is analyzing this issue.
+                          🤖 AI is analyzing this issue.
                           Please wait...
                         </p>
                       )}
